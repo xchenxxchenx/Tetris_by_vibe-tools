@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>網頁版俄羅斯方塊 (Tetris Web)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #060913;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow-x: hidden;
+    }
+    /* Themes */
+    body.theme-neon {
+      background-color: #060913;
+      color: #f1f5f9;
+    }
+    body.theme-gameboy {
+      background-color: #9bbc0f;
+      color: #0f380f;
+      font-family: "Courier New", Courier, monospace;
+    }
+    body.theme-jelly {
+      background: radial-gradient(circle at top, #1e1b4b, #0f172a, #020617);
+      color: #f8fafc;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1100px;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+    }
+    .theme-gameboy header {
+      border-bottom: 2px solid #0f380f;
+    }
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.5px;
+    }
+    .controls-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button {
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: inherit;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    button:active {
+      transform: scale(0.96);
+    }
+    .theme-gameboy button {
+      background: #8bac0f;
+      border: 2px solid #0f380f;
+      color: #0f380f;
+    }
+    .theme-gameboy button.active {
+      background: #306230;
+      color: #9bbc0f;
+    }
+    .btn-primary {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+    }
+    .theme-gameboy .btn-primary {
+      background: #0f380f;
+      color: #9bbc0f;
+    }
+
+    /* Main Container */
+    main {
+      width: 100%;
+      max-width: 1050px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      justify-content: center;
+    }
+    .game-arena {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+    }
+    .side-panel {
+      width: 150px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .theme-gameboy .panel-card {
+      background: #8b956d;
+      border: 2px solid #0f380f;
+      color: #0f380f;
+    }
+    .theme-jelly .panel-card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      opacity: 0.7;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .preview-box {
+      width: 100%;
+      height: 75px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .theme-gameboy .preview-box {
+      background: #9bbc0f;
+      border: 1px solid #0f380f;
+    }
+    .stat-val {
+      font-size: 22px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #38bdf8;
+    }
+    .theme-gameboy .stat-val {
+      color: #0f380f;
+    }
+
+    /* Canvas */
+    .canvas-wrapper {
+      position: relative;
+      width: 320px;
+      height: 640px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: #000;
+    }
+    .theme-gameboy .canvas-wrapper {
+      border: 3px solid #0f380f;
+      background: #8b956d;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Mobile Controls */
+    .mobile-controls {
+      display: none;
+      width: 100%;
+      max-width: 360px;
+      margin-top: 10px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    @media (max-width: 820px) {
+      .side-panel {
+        display: none;
+      }
+      .mobile-controls {
+        display: flex;
+      }
+      .canvas-wrapper {
+        width: 300px;
+        height: 600px;
+      }
+      .mobile-header-stats {
+        display: flex !important;
+      }
+    }
+    .mobile-header-stats {
+      display: none;
+      width: 300px;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .m-btn-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .d-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      gap: 6px;
+    }
+    .d-pad button {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+    .action-pad {
+      display: flex;
+      gap: 8px;
+    }
+    .action-pad button {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.1;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-box {
+      width: 100%;
+      max-width: 440px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 20px;
+      color: #fff;
+    }
+    .theme-gameboy .modal-box {
+      background: #8b956d;
+      border: 3px solid #0f380f;
+      color: #0f380f;
+    }
+    .modal-box h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .item-desc {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      align-items: center;
+    }
+    .badge {
+      display: inline-block;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+      line-height: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="theme-neon">
+
+  <header>
+    <div class="title-group">
+      <span>🎮</span>
+      <span>俄羅斯方塊 Tetris Web</span>
+    </div>
+    <div class="controls-nav">
+      <button id="modeBtn" onclick="toggleMode()">模式: 道具狂暴</button>
+      <button id="themeBtn" onclick="cycleTheme()">主題: 霓虹</button>
+      <button id="muteBtn" onclick="toggleSound()">🔊 音效</button>
+      <button id="helpBtn" onclick="openHelp()">❓ 規則</button>
+      <button class="btn-primary" onclick="restartGame()">重新開始</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="mobile-header-stats">
+      <span>分數: <b id="mScore" class="stat-val" style="font-size:16px;">0</b></span>
+      <span>等級: <b id="mLevel">1</b></span>
+      <span>消除: <b id="mLines">0</b> 行</span>
+    </div>
+
+    <div class="game-arena">
+      <!-- Left Panel: HOLD & STATS -->
+      <div class="side-panel">
+        <div class="panel-card">
+          <div class="panel-title">HOLD 暫存</div>
+          <div class="preview-box">
+            <canvas id="holdCanvas" width="70" height="70"></canvas>
+          </div>
+          <div style="font-size:10px; opacity:0.6; text-align:center; margin-top:4px;">[C / Shift]</div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-title">SCORE 分數</div>
+          <div id="scoreDisplay" class="stat-val">0</div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-title">HIGH 最高分</div>
+          <div id="highScoreDisplay" class="stat-val" style="color:#f59e0b; font-size:18px;">0</div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-title">LEVEL 等級</div>
+          <div id="levelDisplay" class="stat-val" style="font-size:18px;">1</div>
+          <div class="panel-title" style="margin-top:8px;">LINES 消除行數</div>
+          <div id="linesDisplay" class="stat-val" style="font-size:18px;">0</div>
+        </div>
+      </div>
+
+      <!-- Center: Main Canvas -->
+      <div class="canvas-wrapper">
+        <canvas id="tetrisCanvas" width="300" height="600"></canvas>
+      </div>
+
+      <!-- Right Panel: NEXT PIECES -->
+      <div class="side-panel">
+        <div class="panel-card">
+          <div class="panel-title">NEXT 下一個</div>
+          <div class="preview-box" style="height:65px; margin-bottom:6px;">
+            <canvas id="next1" width="60" height="60"></canvas>
+          </div>
+          <div class="preview-box" style="height:65px; margin-bottom:6px;">
+            <canvas id="next2" width="60" height="60"></canvas>
+          </div>
+          <div class="preview-box" style="height:65px;">
+            <canvas id="next3" width="60" height="60"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-card" style="font-size:11px; line-height:1.6; opacity:0.8;">
+          <div style="font-weight:bold; color:#f59e0b; margin-bottom:4px;">鍵盤操作：</div>
+          <div>← → : 移動</div>
+          <div>↑ / X : 順轉</div>
+          <div>Z : 逆轉</div>
+          <div>Space : 硬落下</div>
+          <div>↓ : 軟落下</div>
+          <div>C : 暫存</div>
+          <div>P : 暫停</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Virtual Controls -->
+    <div class="mobile-controls">
+      <div style="display:flex; justify-content:space-between;">
+        <button onclick="handleHold()">HOLD 暫存</button>
+        <button onclick="togglePause()" id="pauseBtn">暫停</button>
+        <button onclick="handleRotateCCW()">逆轉 ↺</button>
+      </div>
+      <div class="m-btn-grid">
+        <div class="d-pad">
+          <div></div>
+          <button onclick="handleRotateCW()">↻</button>
+          <div></div>
+          <button onclick="handleMoveLeft()">←</button>
+          <button onclick="handleSoftDrop()">↓</button>
+          <button onclick="handleMoveRight()">→</button>
+        </div>
+        <div class="action-pad">
+          <button onclick="handleHardDrop()" style="background:#0284c7; color:#fff;">
+            <b>SPACE</b>
+            <span>硬落下</span>
+          </button>
+          <button onclick="handleRotateCW()" style="background:#7c3aed; color:#fff;">
+            <b>ROT</b>
+            <span>順轉</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Help / Info Modal -->
+  <div id="helpModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3>🎮 遊戲規則與特殊道具</h3>
+      <div class="item-desc"><span class="badge" style="color:#06b6d4;">↕</span> <b>直排雷射：</b>消除整列 (Column)，上方方塊自動下落</div>
+      <div class="item-desc"><span class="badge" style="color:#ef4444;">↔</span> <b>橫排炸彈：</b>消除整行 (Row)，全域重力下落加分</div>
+      <div class="item-desc"><span class="badge" style="color:#a855f7;">┼</span> <b>十字爆破：</b>同時觸發直排雷射與橫排炸彈</div>
+      <div class="item-desc"><span class="badge" style="color:#f59e0b;">💣</span> <b>區域炸彈：</b>以方塊為中心爆破 3×3 範圍</div>
+      <div class="item-desc"><span class="badge" style="color:#fbbf24;">★</span> <b>十字加號：</b>5 格金色十字特殊方塊</div>
+      <div style="margin-top:16px; text-align:center;">
+        <button class="btn-primary" onclick="closeHelp()" style="width:100%; padding:10px;">關閉並開始玩</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameOverModal" class="modal-backdrop">
+    <div class="modal-box" style="text-align:center;">
+      <h2 style="font-size:26px; color:#ef4444; margin-bottom:8px;">GAME OVER</h2>
+      <p style="margin-bottom:16px; opacity:0.8;">方塊已溢出頂部緩衝區</p>
+      <div style="font-size:18px; margin-bottom:12px;">本次得分: <b id="finalScore" class="stat-val">0</b></div>
+      <button class="btn-primary" onclick="restartGame()" style="width:100%; padding:12px; font-size:16px; margin-bottom:8px;">再玩一次</button>
+    </div>
+  </div>
+
+  <footer style="padding:10px; font-size:12px; opacity:0.6;">
+    網頁版俄羅斯方塊小遊戲 v1.2 · 獨立單檔案版
+  </footer>
+
+  <script>
+    // --- AUDIO SYNTHESIZER ---
+    class WebAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) this.ctx = new Ctx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      play(freq, type = 'sine', duration = 0.08, vol = 0.15) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+      }
+      move() { this.play(260, 'triangle', 0.04, 0.1); }
+      rotate() { this.play(440, 'sine', 0.06, 0.15); }
+      drop() { this.play(130, 'triangle', 0.09, 0.2); }
+      laser() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+      }
+      bomb() {
+        this.play(80, 'square', 0.25, 0.35);
+      }
+      clear() {
+        this.play(523, 'triangle', 0.15, 0.2);
+        setTimeout(() => this.play(659, 'triangle', 0.18, 0.2), 60);
+      }
+      over() {
+        this.play(349, 'sawtooth', 0.3, 0.25);
+        setTimeout(() => this.play(261, 'sawtooth', 0.4, 0.25), 180);
+      }
+    }
+    const audio = new WebAudio();
+
+    // --- GAME CONSTANTS & PIECES ---
+    const COLS = 10;
+    const ROWS = 20;
+    const BUFFER = 2;
+    const TOTAL_ROWS = ROWS + BUFFER;
+
+    const PIECES = {
+      I: { color: '#06b6d4', matrix: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },
+      J: { color: '#3b82f6', matrix: [[1,0,0],[1,1,1],[0,0,0]] },
+      L: { color: '#f97316', matrix: [[0,0,1],[1,1,1],[0,0,0]] },
+      O: { color: '#eab308', matrix: [[1,1],[1,1]] },
+      S: { color: '#22c55e', matrix: [[0,1,1],[1,1,0],[0,0,0]] },
+      T: { color: '#a855f7', matrix: [[0,1,0],[1,1,1],[0,0,0]] },
+      Z: { color: '#ef4444', matrix: [[1,1,0],[0,1,1],[0,0,0]] },
+      PLUS: { color: '#fbbf24', matrix: [[0,1,0],[1,1,1],[0,1,0]] }
+    };
+
+    let grid = Array.from({ length: TOTAL_ROWS }, () => Array(COLS).fill(null));
+    let mode = 'powerup'; // 'classic' or 'powerup'
+    let theme = 'neon'; // 'neon', 'gameboy', 'jelly'
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('standalone_high') || '0', 10);
+    let level = 1;
+    let lines = 0;
+    let isPaused = false;
+    let isGameOver = false;
+
+    let currentPiece = null;
+    let nextQueue = [];
+    let heldPiece = null;
+    let canHold = true;
+    let pieceCounter = 0;
+
+    // Visual FX
+    let lasers = [];
+    let explosions = [];
+    let floatingTexts = [];
+
+    const canvas = document.getElementById('tetrisCanvas');
+    const ctx = canvas.getContext('2d');
+    const BLOCK = canvas.width / COLS;
+
+    // --- HELPERS ---
+    function rotateMatrix(m, cw = true) {
+      const N = m.length;
+      const res = Array.from({ length: N }, () => Array(N).fill(0));
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          res[c][N - 1 - r] = cw ? m[r][c] : m[N - 1 - c][r];
+        }
+      }
+      return res;
+    }
+
+    function createPiece(type) {
+      const base = PIECES[type];
+      const matrix = base.matrix.map(r => [...r]);
+      let item = null;
+      let itemCoord = null;
+
+      if (mode === 'powerup') {
+        pieceCounter++;
+        if (pieceCounter % 6 === 0 || Math.random() < 0.2) {
+          const items = ['vertical_laser', 'horizontal_bomb', 'cross_buster', 'block_buster'];
+          item = items[Math.floor(Math.random() * items.length)];
+          // find filled cell
+          for (let r = 0; r < matrix.length; r++) {
+            for (let c = 0; c < matrix[r].length; c++) {
+              if (matrix[r][c] === 1) {
+                itemCoord = { rx: c, ry: r };
+                break;
+              }
+            }
+            if (itemCoord) break;
+          }
+        }
+      }
+
+      return {
+        type,
+        matrix,
+        color: base.color,
+        x: Math.floor((COLS - matrix[0].length) / 2),
+        y: 0,
+        item,
+        itemCoord
+      };
+    }
+
+    function fillQueue() {
+      const standard = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+      if (mode === 'powerup' && Math.random() < 0.25) standard.push('PLUS');
+      for (let i = standard.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [standard[i], standard[j]] = [standard[j], standard[i]];
+      }
+      for (const t of standard) {
+        nextQueue.push(createPiece(t));
+      }
+    }
+
+    function checkCollision(piece, ox = 0, oy = 0, customM = null) {
+      const m = customM || piece.matrix;
+      for (let r = 0; r < m.length; r++) {
+        for (let c = 0; c < m[r].length; c++) {
+          if (m[r][c] !== 0) {
+            const nx = piece.x + c + ox;
+            const ny = piece.y + r + oy;
+            if (nx < 0 || nx >= COLS || ny >= TOTAL_ROWS) return true;
+            if (ny >= 0 && grid[ny][nx] !== null) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function getGhostY() {
+      let gy = currentPiece.y;
+      while (!checkCollision(currentPiece, 0, gy - currentPiece.y + 1)) {
+        gy++;
+      }
+      return gy;
+    }
+
+    // --- LOCK & POWER-UP LOGIC ---
+    function lockPiece() {
+      const p = currentPiece;
+      for (let r = 0; r < p.matrix.length; r++) {
+        for (let c = 0; c < p.matrix[r].length; c++) {
+          if (p.matrix[r][c] !== 0) {
+            const bx = p.x + c;
+            const by = p.y + r;
+            if (by >= 0 && by < TOTAL_ROWS) {
+              const isItem = p.item && p.itemCoord && p.itemCoord.rx === c && p.itemCoord.ry === r;
+              grid[by][bx] = { color: p.color, item: isItem ? p.item : null };
+            }
+          }
+        }
+      }
+
+      // Check Items
+      if (p.item && p.itemCoord) {
+        const itemCol = p.x + p.itemCoord.rx;
+        const itemRow = p.y + p.itemCoord.ry;
+
+        if (p.item === 'vertical_laser' || p.item === 'cross_buster') {
+          audio.laser();
+          lasers.push({ type: 'col', col: itemCol, alpha: 1 });
+          let cleared = 0;
+          for (let r = 0; r < TOTAL_ROWS; r++) {
+            if (grid[r][itemCol]) { cleared++; grid[r][itemCol] = null; }
+          }
+          let wRow = TOTAL_ROWS - 1;
+          for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+            if (grid[r][itemCol]) {
+              grid[wRow][itemCol] = grid[r][itemCol];
+              if (wRow !== r) grid[r][itemCol] = null;
+              wRow--;
+            }
+          }
+          score += 200 + cleared * 20;
+          floatingTexts.push({ text: '+LASER!', x: itemCol * BLOCK + 15, y: 150, alpha: 1 });
+        }
+
+        if (p.item === 'horizontal_bomb' || p.item === 'cross_buster') {
+          audio.bomb();
+          lasers.push({ type: 'row', row: itemRow, alpha: 1 });
+          let cleared = 0;
+          if (itemRow >= 0 && itemRow < TOTAL_ROWS) {
+            for (let c = 0; c < COLS; c++) {
+              if (grid[itemRow][c]) { cleared++; grid[itemRow][c] = null; }
+            }
+            for (let r = itemRow; r > 0; r--) {
+              grid[r] = [...grid[r - 1]];
+            }
+            grid[0] = Array(COLS).fill(null);
+            score += 200 + cleared * 20;
+            floatingTexts.push({ text: '+BOMB!', x: 150, y: (itemRow - BUFFER) * BLOCK, alpha: 1 });
+          }
+        }
+
+        if (p.item === 'block_buster') {
+          audio.bomb();
+          explosions.push({ x: itemCol * BLOCK, y: (itemRow - BUFFER) * BLOCK, radius: 10, alpha: 1 });
+          let cleared = 0;
+          const sc = Math.max(0, itemCol - 1);
+          const ec = Math.min(COLS - 1, itemCol + 1);
+          const sr = Math.max(0, itemRow - 1);
+          const er = Math.min(TOTAL_ROWS - 1, itemRow + 1);
+          for (let r = sr; r <= er; r++) {
+            for (let c = sc; c <= ec; c++) {
+              if (grid[r][c]) { cleared++; grid[r][c] = null; }
+            }
+          }
+          for (let c = sc; c <= ec; c++) {
+            let wRow = TOTAL_ROWS - 1;
+            for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+              if (grid[r][c]) {
+                grid[wRow][c] = grid[r][c];
+                if (wRow !== r) grid[r][c] = null;
+                wRow--;
+              }
+            }
+          }
+          score += 200 + cleared * 20;
+          floatingTexts.push({ text: '+3x3 BLAST!', x: itemCol * BLOCK + 15, y: (itemRow - BUFFER) * BLOCK, alpha: 1 });
+        }
+      }
+
+      // Check Full Lines
+      let linesCleared = 0;
+      for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+        if (grid[r].every(c => c !== null)) {
+          linesCleared++;
+          grid.splice(r, 1);
+          grid.unshift(Array(COLS).fill(null));
+          r++;
+        }
+      }
+
+      if (linesCleared > 0) {
+        audio.clear();
+        const pts = [0, 100 * level, 300 * level, 500 * level, 800 * level][linesCleared] || 1000 * level;
+        score += pts;
+        lines += linesCleared;
+        level = Math.floor(lines / 10) + 1;
+        floatingTexts.push({ text: linesCleared >= 4 ? 'TETRIS!' : `+${pts}`, x: 150, y: 250, alpha: 1 });
+      }
+
+      updateStats();
+
+      // Check overflow in buffer row 0 & 1
+      if (grid[0].some(c => c !== null) || grid[1].some(c => c !== null)) {
+        gameOver();
+        return;
+      }
+
+      spawnNext();
+    }
+
+    function spawnNext() {
+      if (nextQueue.length < 4) fillQueue();
+      currentPiece = nextQueue.shift();
+      canHold = true;
+      if (checkCollision(currentPiece)) {
+        gameOver();
+        return;
+      }
+      renderPreviews();
+    }
+
+    function gameOver() {
+      isGameOver = true;
+      audio.over();
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('standalone_high', String(highScore));
+      }
+      document.getElementById('finalScore').innerText = score.toLocaleString();
+      document.getElementById('gameOverModal').style.display = 'flex';
+    }
+
+    function restartGame() {
+      grid = Array.from({ length: TOTAL_ROWS }, () => Array(COLS).fill(null));
+      score = 0;
+      lines = 0;
+      level = 1;
+      isGameOver = false;
+      isPaused = false;
+      nextQueue = [];
+      heldPiece = null;
+      canHold = true;
+      pieceCounter = 0;
+      lasers = [];
+      explosions = [];
+      floatingTexts = [];
+      document.getElementById('gameOverModal').style.display = 'none';
+      fillQueue();
+      spawnNext();
+      updateStats();
+      renderPreviews();
+    }
+
+    // --- CONTROLS ---
+    function handleMoveLeft() {
+      if (!isGameOver && !isPaused && currentPiece && !checkCollision(currentPiece, -1, 0)) {
+        currentPiece.x--;
+        audio.move();
+      }
+    }
+    function handleMoveRight() {
+      if (!isGameOver && !isPaused && currentPiece && !checkCollision(currentPiece, 1, 0)) {
+        currentPiece.x++;
+        audio.move();
+      }
+    }
+    function handleRotateCW() {
+      if (isGameOver || isPaused || !currentPiece) return;
+      const nm = rotateMatrix(currentPiece.matrix, true);
+      if (!checkCollision(currentPiece, 0, 0, nm)) {
+        currentPiece.matrix = nm;
+        audio.rotate();
+      } else if (!checkCollision(currentPiece, -1, 0, nm)) {
+        currentPiece.x--;
+        currentPiece.matrix = nm;
+        audio.rotate();
+      } else if (!checkCollision(currentPiece, 1, 0, nm)) {
+        currentPiece.x++;
+        currentPiece.matrix = nm;
+        audio.rotate();
+      }
+    }
+    function handleRotateCCW() {
+      if (isGameOver || isPaused || !currentPiece) return;
+      const nm = rotateMatrix(currentPiece.matrix, false);
+      if (!checkCollision(currentPiece, 0, 0, nm)) {
+        currentPiece.matrix = nm;
+        audio.rotate();
+      }
+    }
+    function handleSoftDrop() {
+      if (isGameOver || isPaused || !currentPiece) return;
+      if (!checkCollision(currentPiece, 0, 1)) {
+        currentPiece.y++;
+        score++;
+        updateStats();
+      } else {
+        audio.drop();
+        lockPiece();
+      }
+    }
+    function handleHardDrop() {
+      if (isGameOver || isPaused || !currentPiece) return;
+      const gy = getGhostY();
+      score += (gy - currentPiece.y) * 2;
+      currentPiece.y = gy;
+      audio.drop();
+      lockPiece();
+    }
+    function handleHold() {
+      if (isGameOver || isPaused || !currentPiece || !canHold) return;
+      audio.rotate();
+      const current = currentPiece;
+      const cleanPiece = createPiece(current.type);
+      if (heldPiece === null) {
+        heldPiece = cleanPiece;
+        spawnNext();
+      } else {
+        const swap = heldPiece;
+        heldPiece = cleanPiece;
+        currentPiece = swap;
+        currentPiece.x = Math.floor((COLS - currentPiece.matrix[0].length) / 2);
+        currentPiece.y = 0;
+      }
+      canHold = false;
+      renderPreviews();
+    }
+
+    // Keyboard bindings
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { togglePause(); return; }
+      if (isPaused || isGameOver) return;
+      switch (e.key) {
+        case 'ArrowLeft': case 'a': case 'A': e.preventDefault(); handleMoveLeft(); break;
+        case 'ArrowRight': case 'd': case 'D': e.preventDefault(); handleMoveRight(); break;
+        case 'ArrowUp': case 'w': case 'W': case 'x': case 'X': e.preventDefault(); handleRotateCW(); break;
+        case 'z': case 'Z': case 'q': case 'Q': e.preventDefault(); handleRotateCCW(); break;
+        case 'ArrowDown': case 's': case 'S': e.preventDefault(); handleSoftDrop(); break;
+        case ' ': e.preventDefault(); handleHardDrop(); break;
+        case 'c': case 'C': case 'Shift': e.preventDefault(); handleHold(); break;
+      }
+    });
+
+    // --- RENDER LOOP ---
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background
+      if (theme === 'gameboy') {
+        ctx.fillStyle = '#8b956d';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (theme === 'jelly') {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#060913';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw Grid lines
+      ctx.strokeStyle = theme === 'gameboy' ? 'rgba(15, 56, 15, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+      for (let c = 0; c <= COLS; c++) {
+        ctx.beginPath(); ctx.moveTo(c * BLOCK, 0); ctx.lineTo(c * BLOCK, canvas.height); ctx.stroke();
+      }
+      for (let r = 0; r <= ROWS; r++) {
+        ctx.beginPath(); ctx.moveTo(0, r * BLOCK); ctx.lineTo(canvas.width, r * BLOCK); ctx.stroke();
+      }
+
+      // Draw Ghost Piece & Item Projection
+      if (currentPiece) {
+        const gy = getGhostY();
+        const p = currentPiece;
+        // Projection highlighting if item
+        if (p.item && p.itemCoord) {
+          const colX = (p.x + p.itemCoord.rx) * BLOCK;
+          const rowY = (gy + p.itemCoord.ry - BUFFER) * BLOCK;
+          ctx.save();
+          ctx.strokeStyle = '#f59e0b';
+          ctx.setLineDash([4, 4]);
+          if (p.item === 'vertical_laser' || p.item === 'cross_buster') {
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+            ctx.fillRect(colX, 0, BLOCK, canvas.height);
+            ctx.strokeRect(colX, 0, BLOCK, canvas.height);
+          }
+          if (p.item === 'horizontal_bomb' || p.item === 'cross_buster') {
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+            ctx.fillRect(0, rowY, canvas.width, BLOCK);
+            ctx.strokeRect(0, rowY, canvas.width, BLOCK);
+          }
+          if (p.item === 'block_buster') {
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
+            ctx.fillRect(colX - BLOCK, rowY - BLOCK, BLOCK * 3, BLOCK * 3);
+            ctx.strokeRect(colX - BLOCK, rowY - BLOCK, BLOCK * 3, BLOCK * 3);
+          }
+          ctx.restore();
+        }
+
+        // Draw Ghost Body
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        for (let r = 0; r < p.matrix.length; r++) {
+          for (let c = 0; c < p.matrix[r].length; c++) {
+            if (p.matrix[r][c] !== 0) {
+              const vy = gy + r - BUFFER;
+              if (vy >= 0) {
+                ctx.fillRect((p.x + c) * BLOCK + 1, vy * BLOCK + 1, BLOCK - 2, BLOCK - 2);
+                ctx.strokeRect((p.x + c) * BLOCK + 1, vy * BLOCK + 1, BLOCK - 2, BLOCK - 2);
+              }
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      // Draw Locked Grid
+      for (let r = BUFFER; r < TOTAL_ROWS; r++) {
+        const vy = r - BUFFER;
+        for (let c = 0; c < COLS; c++) {
+          const cell = grid[r][c];
+          if (cell) drawBlock(c * BLOCK, vy * BLOCK, BLOCK, cell.color, cell.item);
+        }
+      }
+
+      // Draw Active Piece
+      if (currentPiece) {
+        const p = currentPiece;
+        for (let r = 0; r < p.matrix.length; r++) {
+          for (let c = 0; c < p.matrix[r].length; c++) {
+            if (p.matrix[r][c] !== 0) {
+              const vy = p.y + r - BUFFER;
+              if (vy >= 0) {
+                const isItem = p.item && p.itemCoord && p.itemCoord.rx === c && p.itemCoord.ry === r;
+                drawBlock((p.x + c) * BLOCK, vy * BLOCK, BLOCK, p.color, isItem ? p.item : null);
+              }
+            }
+          }
+        }
+      }
+
+      // Draw Lasers & Explosions
+      for (const l of lasers) {
+        ctx.save();
+        ctx.globalAlpha = l.alpha;
+        ctx.fillStyle = '#06b6d4';
+        if (l.type === 'col') ctx.fillRect(l.col * BLOCK, 0, BLOCK, canvas.height);
+        else ctx.fillRect(0, (l.row - BUFFER) * BLOCK, canvas.width, BLOCK);
+        ctx.restore();
+        l.alpha -= 0.05;
+      }
+      lasers = lasers.filter(l => l.alpha > 0.05);
+
+      for (const ft of floatingTexts) {
+        ctx.save();
+        ctx.globalAlpha = ft.alpha;
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+        ft.y -= 1;
+        ft.alpha -= 0.025;
+      }
+      floatingTexts = floatingTexts.filter(ft => ft.alpha > 0.05);
+    }
+
+    function drawBlock(x, y, size, color, item) {
+      const p = 1;
+      const s = size - p * 2;
+      ctx.save();
+      if (theme === 'gameboy') {
+        ctx.fillStyle = '#306230';
+        ctx.fillRect(x + p, y + p, s, s);
+        ctx.strokeStyle = '#0f380f';
+        ctx.strokeRect(x + p, y + p, s, s);
+      } else {
+        ctx.fillStyle = color;
+        ctx.fillRect(x + p, y + p, s, s);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(x + p, y + p, s, 2);
+        ctx.fillRect(x + p, y + p, 2, s);
+      }
+      if (item) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const icon = item === 'vertical_laser' ? '↕' : item === 'horizontal_bomb' ? '↔' : item === 'cross_buster' ? '┼' : '💣';
+        ctx.fillText(icon, x + size / 2, y + size / 2);
+      }
+      ctx.restore();
+    }
+
+    function renderPreviews() {
+      // Hold Canvas
+      drawMiniPiece('holdCanvas', heldPiece);
+      // Next Canvases
+      drawMiniPiece('next1', nextQueue[0]);
+      drawMiniPiece('next2', nextQueue[1]);
+      drawMiniPiece('next3', nextQueue[2]);
+    }
+
+    function drawMiniPiece(canvasId, p) {
+      const c = document.getElementById(canvasId);
+      if (!c) return;
+      const cx = c.getContext('2d');
+      cx.clearRect(0, 0, c.width, c.height);
+      if (!p) return;
+      const m = p.matrix;
+      const bSize = 14;
+      const ox = (c.width - m[0].length * bSize) / 2;
+      const oy = (c.height - m.length * bSize) / 2;
+      for (let r = 0; r < m.length; r++) {
+        for (let col = 0; col < m[r].length; col++) {
+          if (m[r][col] === 1) {
+            cx.fillStyle = theme === 'gameboy' ? '#0f380f' : p.color;
+            cx.fillRect(ox + col * bSize, oy + r * bSize, bSize - 1, bSize - 1);
+          }
+        }
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('scoreDisplay').innerText = score.toLocaleString();
+      document.getElementById('mScore').innerText = score.toLocaleString();
+      document.getElementById('highScoreDisplay').innerText = highScore.toLocaleString();
+      document.getElementById('levelDisplay').innerText = level;
+      document.getElementById('mLevel').innerText = level;
+      document.getElementById('linesDisplay').innerText = lines;
+      document.getElementById('mLines').innerText = lines;
+    }
+
+    // --- GAME LOOP ---
+    let lastDrop = 0;
+    function gameLoop(time) {
+      if (!isGameOver && !isPaused && currentPiece) {
+        const interval = Math.max(60, Math.pow(0.8 - (level - 1) * 0.007, level - 1) * 1000);
+        if (time - lastDrop >= interval) {
+          lastDrop = time;
+          if (!checkCollision(currentPiece, 0, 1)) {
+            currentPiece.y++;
+          } else {
+            audio.drop();
+            lockPiece();
+          }
+        }
+      }
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // --- UI TOGGLES ---
+    function toggleMode() {
+      mode = mode === 'classic' ? 'powerup' : 'classic';
+      document.getElementById('modeBtn').innerText = `模式: ${mode === 'classic' ? '經典' : '道具狂暴'}`;
+      restartGame();
+    }
+    function cycleTheme() {
+      const themes = ['neon', 'gameboy', 'jelly'];
+      theme = themes[(themes.indexOf(theme) + 1) % themes.length];
+      document.body.className = `theme-${theme}`;
+      const nameMap = { neon: '霓虹', gameboy: '復古GB', jelly: '果凍水晶' };
+      document.getElementById('themeBtn').innerText = `主題: ${nameMap[theme]}`;
+      renderPreviews();
+    }
+    function toggleSound() {
+      audio.muted = !audio.muted;
+      document.getElementById('muteBtn').innerText = audio.muted ? '🔇 靜音' : '🔊 音效';
+    }
+    function togglePause() {
+      if (isGameOver) return;
+      isPaused = !isPaused;
+      document.getElementById('pauseBtn').innerText = isPaused ? '繼續' : '暫停';
+    }
+    function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
+    function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
+
+    // Start Game
+    restartGame();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
